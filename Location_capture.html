@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Open Form — getting location…</title>
+  <title>Opening Form…</title>
 
   <style>
     body{
@@ -40,104 +40,81 @@
 </head>
 
 <body>
-  <div class="card">
-    <h2>Preparing the form…</h2>
-    <p class="small">
-      This page gets your GPS location and opens the Google Form with
-      Latitude & Longitude prefilled.
-    </p>
-    <div id="status" class="small">
-      Requesting high-accuracy GPS location…
-    </div>
-    <div style="margin-top:12px">
-      <button id="retry" style="display:none">Try again</button>
-    </div>
+<div class="card">
+  <h2>Preparing the form…</h2>
+  <p class="small">
+    Fetching high-accuracy GPS location and opening the form.
+  </p>
+  <div id="status" class="small">
+    Requesting GPS location…
   </div>
+  <button id="continueBtn" style="display:none">
+    Open form without location
+  </button>
+</div>
 
 <script>
-  // ========= CONFIG =========
-  const FORM_BASE_URL = "https://forms.gle/m7JKaHVw9MwKuBQPA";
-  const ENTRY_LOCATION = "entry.743091876"; // Location field ID
-  // ==========================
+/* ================= CONFIG ================= */
 
-  const status = document.getElementById("status");
-  const retryBtn = document.getElementById("retry");
+// FULL prefill form URL (your link)
+const FORM_URL =
+  "https://docs.google.com/forms/d/e/1FAIpQLSek1bQ_7ffQZwtJe9whY-MPHsQZ-7DwQbhhdJd0yWV9gZGRyw/viewform?usp=pp_url&entry.1466044114=fgjgfdhdg&entry.1723998876=Rajan+Jha+(8595141597)&entry.2131610740=CHHATARPUR+DIVISION";
 
-  retryBtn.addEventListener("click", () => {
-    retryBtn.style.display = "none";
-    status.textContent = "Requesting high-accuracy GPS location…";
-    requestLocation();
-  });
+// GPS field entry ID
+const ENTRY_LOCATION = "entry.743091876";
 
-  function urlWithParams(base, params) {
-    const u = new URL(base);
-    if (!u.searchParams.has("usp")) {
-      u.searchParams.set("usp", "pp_url");
-    }
-    Object.keys(params).forEach(k => {
-      if (params[k] !== "") u.searchParams.set(k, params[k]);
-    });
-    return u.toString();
+/* ======================================== */
+
+const statusEl = document.getElementById("status");
+const continueBtn = document.getElementById("continueBtn");
+
+continueBtn.onclick = () => {
+  window.location.href = FORM_URL;
+};
+
+function buildUrlWithLocation(lat, lng) {
+  const url = new URL(FORM_URL);
+  url.searchParams.set(ENTRY_LOCATION, `${lat},${lng}`);
+  return url.toString();
+}
+
+function requestLocation() {
+  if (!navigator.geolocation) {
+    statusEl.textContent = "Geolocation not supported.";
+    continueBtn.style.display = "inline-block";
+    return;
   }
 
-  function requestLocation() {
-    if (!navigator.geolocation) {
-      status.textContent = "Geolocation is not supported by this browser.";
-      showContinue();
-      return;
-    }
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const lat = pos.coords.latitude.toFixed(6);
+      const lng = pos.coords.longitude.toFixed(6);
 
-    // 🔥 FORCE HIGH ACCURACY GPS
-    const options = {
-      enableHighAccuracy: true,  // GPS-level accuracy
-      timeout: 20000,            // wait longer for GPS lock
+      statusEl.textContent =
+        `Location detected (${lat}, ${lng}). Opening form…`;
+
+      const finalUrl = buildUrlWithLocation(lat, lng);
+
+      setTimeout(() => {
+        window.location.replace(finalUrl);
+      }, 600);
+    },
+    err => {
+      console.warn(err);
+      statusEl.textContent =
+        "Unable to get GPS location. You may continue without it.";
+      continueBtn.style.display = "inline-block";
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 20000,
       maximumAge: 0
-    };
+    }
+  );
+}
 
-    navigator.geolocation.getCurrentPosition(success, failure, options);
-  }
-
-  function success(pos) {
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-
-    // ONLY Latitude & Longitude
-    const locString = `${lat},${lng}`;
-
-    status.textContent =
-      `Got GPS location: ${lat.toFixed(6)}, ${lng.toFixed(6)} — opening form…`;
-
-    const params = {};
-    params[ENTRY_LOCATION] = locString;
-
-    const prefilledUrl = urlWithParams(FORM_BASE_URL, params);
-
-    setTimeout(() => {
-      window.location.href = prefilledUrl;
-    }, 700);
-  }
-
-  function failure(err) {
-    console.warn("Geolocation error:", err);
-    status.textContent =
-      "Unable to get GPS location (permission denied, GPS off, or timeout).";
-    showContinue();
-  }
-
-  function showContinue() {
-    retryBtn.style.display = "inline-block";
-
-    const continueBtn = document.createElement("button");
-    continueBtn.textContent = "Open form without location";
-    continueBtn.onclick = () => {
-      window.location.href = FORM_BASE_URL;
-    };
-
-    document.querySelector(".card").appendChild(continueBtn);
-  }
-
-  // Auto-start on load
-  requestLocation();
+// Auto start
+requestLocation();
 </script>
 </body>
 </html>
